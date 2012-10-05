@@ -84,6 +84,11 @@ void uart_init() {
 
 	UC0IE |= UCA0RXIE;
 	IE2 |= UCA0RXIE;
+
+#ifdef UART_COUNT_RXTX
+	uart_bytes_rx = 0;
+	uart_bytes_tx = 0;
+#endif
 }
 
 void uart_putc(unsigned char ch) {
