@@ -1,0 +1,7 @@
+makefile
+Makefile
+*.mk
+*.lib
+*.obj
+*.pp
+*.prefs
