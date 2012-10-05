@@ -25,6 +25,8 @@
 #ifndef __UART_H
 #define __UART_H
 
+#include <stdbool.h>
+
 /**
  * Инициализирует UART 9600 бод.
  */
@@ -34,7 +36,7 @@ void uart_init();
  * Процедура для вывода одного символа в UART.
  * Асинхронна: Процедура не ожидает завершения передачи данных.
  */
-void uart_putc(unsigned char c);
+void uart_putc(unsigned char ch);
 
 /**
  * Процедура для вывода 0-terminated строки в UART.
@@ -52,5 +54,15 @@ unsigned char uart_getc();
  * Последовательное считывание двух байт uart_getc, и возвращение беззнакового short.
  */
 unsigned short uart_getw();
+
+/**
+ *
+ */
+bool uart_getc_noblock(unsigned char *ch);
+
+/**
+ *
+ */
+bool uart_getw_noblock(unsigned short *sh);
 
 #endif

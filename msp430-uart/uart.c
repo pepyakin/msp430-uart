@@ -25,7 +25,7 @@
 #include <msp430.h>
 #include <stdbool.h>
 
-#include "uart.h"
+#include <uart.h>
 #include "ringbuf.h"
 
 // #define SMCLK 16000000
@@ -44,6 +44,7 @@ unsigned short uart_bytes_rx;
 unsigned short uart_bytes_tx;
 #endif
 
+// Флаг ожидания ввода. Сброс в USCI0RX_ISR.
 static bool waiting_for_rx = false;
 
 void uart_init() {
@@ -112,6 +113,26 @@ unsigned short uart_getw() {
 	buf[1] = uart_getc();
 
 	return *(unsigned short *) buf;
+}
+
+bool uart_getc_noblock(unsigned char *ch) {
+	// Кольцевой буфер займется всей грязной работой.
+	return ring_pop(&rx_buffer, ch);
+}
+
+bool uart_getw_noblock(unsigned short *sh) {
+	if (ring_len(&rx_buffer) < 2) {
+		return false;
+	}
+
+	unsigned char buf[2];
+	if (ring_pop(&rx_buffer, &buf[0]) && ring_pop(&rx_buffer, &buf[1])) {
+		*sh = *(unsigned short *)buf;
+
+		return true;
+	} else {
+		return false;
+	}
 }
 
 #pragma vector = USCIAB0RX_VECTOR
