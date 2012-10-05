@@ -45,7 +45,23 @@ unsigned short uart_bytes_tx;
 #endif
 
 // Флаг ожидания ввода. Сброс в USCI0RX_ISR.
-static bool waiting_for_rx = false;
+static volatile bool waiting_for_rx = false;
+static volatile bool waiting_for_tx = false;
+
+/**
+ * Ждать выполнения некоторого условия.
+ */
+static __inline void wait_for_rxtx(volatile bool *condition) {
+	// Сохранить регистр состояния. Служит для востановления флага GIE.
+	asm (" push SR");
+
+	while (*condition) {
+		_BIS_SR(LPM0_bits | GIE);
+	}
+
+	// Востановить регистр состояния.
+	asm (" pop SR");
+}
 
 void uart_init() {
 	// Выбрать специальную функцию для пинов RX_PIN и TX_PIN
@@ -88,18 +104,22 @@ void uart_puts(const char *str) {
 	UC0IE |= UCA0TXIE;
 }
 
+void uart_flush() {
+	if (ring_empty(&tx_buffer)) {
+		// Буфер и так пуст.
+		return;
+	}
+
+	waiting_for_tx = true;
+	wait_for_rxtx(&waiting_for_tx);
+}
+
 unsigned char uart_getc() {
 	unsigned char ch;
 
 	if (ring_empty(&rx_buffer)) {
 		waiting_for_rx = true;
-
-		asm (" push SR");
-		while (waiting_for_rx) {
-			// Перейти в режим сна.
-			_BIS_SR(LPM0_bits | GIE);
-		}
-		asm (" pop SR");
+		wait_for_rxtx(&waiting_for_rx);
 	}
 
 	ring_pop(&rx_buffer, &ch);
@@ -161,6 +181,14 @@ __interrupt void USCI0TX_ISR(void) {
 	if (ring_empty(&tx_buffer)) {
 		// Исходящий буфер пуст. Выключаем прерывание на вывод USCI.
 		UC0IE &= ~UCA0TXIE;
+
+		if (waiting_for_tx) {
+			// Если мы ждем окончания передачи данных, то сбросить
+			// флаг и перейти в активный режим CPU.
+			waiting_for_tx = false;
+			_BIC_SR_IRQ(LPM0_bits);
+		}
+
 		return;
 	}
 
