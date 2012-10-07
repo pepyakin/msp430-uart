@@ -53,9 +53,9 @@ typedef struct {
 } ring_buffer;
 
 __inline unsigned int ring_len(ring_buffer *buffer) {
-	short firstLen = buffer->head - buffer->tail;
+	short first_len = buffer->head - buffer->tail;
 
-	if (firstLen >= 0) {
+	if (first_len >= 0) {
 		/*
 		 * Указатель для записи находится спереди или на том же месте
 		 * как и указатель для чтения (в этом случае буфер пуст).
@@ -65,7 +65,7 @@ __inline unsigned int ring_len(ring_buffer *buffer) {
 		 * T - buffer->tail
 		 * H - buffer->head
 		 */
-		return firstLen;
+		return first_len;
 	} else {
 		/*
 		 * Указатель для записи находится позади указателя чтения. Это
@@ -78,7 +78,7 @@ __inline unsigned int ring_len(ring_buffer *buffer) {
 		 * H - buffer->head*
 		 */
 
-		return -firstLen - 1;
+		return -first_len - 1;
 	}
 }
 

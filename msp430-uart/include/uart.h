@@ -45,6 +45,11 @@ void uart_putc(unsigned char ch);
 void uart_puts(const char *str);
 
 /**
+ * Процедура, посылающая count символов (в том числе и нулевого байта (0x00)) из буффера str в UART.
+ */
+void uart_putn(unsigned char *str, unsigned int count);
+
+/**
  * Процедура ожидающая полного освобождения буфера передачи.
  */
 void uart_flush();

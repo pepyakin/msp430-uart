@@ -52,15 +52,17 @@ static volatile bool waiting_for_tx = false;
  * Ждать выполнения некоторого условия.
  */
 static __inline void wait_for_rxtx(volatile bool *condition) {
-	// Сохранить регистр состояния. Служит для востановления флага GIE.
-	asm (" push SR");
+	// Сохрнатить состояние флага GIE (General Interrupt Enable).
+	bool gie_was_enabled = _get_SR_register() & GIE;
 
 	while (*condition) {
 		_BIS_SR(LPM0_bits | GIE);
 	}
 
-	// Востановить регистр состояния.
-	asm (" pop SR");
+	// Убираем флаг GIE из SR, если он был установлен.
+	if (!gie_was_enabled) {
+		_BIC_SR(GIE);
+	}
 }
 
 void uart_init() {
@@ -72,6 +74,10 @@ void uart_init() {
 	BCSCTL1 = CALBC1_1MHZ;
 	DCOCTL = CALDCO_1MHZ;
 
+	// As said in 15.3.1 of holy user guide,
+	// before initialization of USCI we must reset it.
+	UCA0CTL1 = UCSWRST;
+
 	UCA0CTL1 |= UCSSEL_2;
 
 	UCA0CTL0 = 0;
@@ -80,6 +86,8 @@ void uart_init() {
 	UCA0BR0 = 104;
 	UCA0BR1 = 0;
 	UCA0MCTL = UCBRS0;
+
+	// Запустить таймер.
 	UCA0CTL1 &= ~UCSWRST;
 
 	UC0IE |= UCA0RXIE;
@@ -102,6 +110,15 @@ void uart_putc(unsigned char ch) {
 
 void uart_puts(const char *str) {
 	while (*str) {
+		ring_push(&tx_buffer, *str++);
+	}
+
+	// Включить прерывания передачи.
+	UC0IE |= UCA0TXIE;
+}
+
+void uart_putn(unsigned char *str, unsigned int count) {
+	while (count--) {
 		ring_push(&tx_buffer, *str++);
 	}
 
@@ -152,7 +169,7 @@ bool uart_getw_noblock(unsigned short *sh) {
 
 	unsigned char buf[2];
 	if (ring_pop(&rx_buffer, &buf[0]) && ring_pop(&rx_buffer, &buf[1])) {
-		*sh = *(unsigned short *)buf;
+		*sh = *(unsigned short *) buf;
 
 		return true;
 	} else {
@@ -183,6 +200,7 @@ __interrupt void USCI0RX_ISR(void) {
 
 #pragma vector = USCIAB0TX_VECTOR
 __interrupt void USCI0TX_ISR(void) {
+
 	if (ring_empty(&tx_buffer)) {
 		// Исходящий буфер пуст. Выключаем прерывание на вывод USCI.
 		UC0IE &= ~UCA0TXIE;
