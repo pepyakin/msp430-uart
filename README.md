@@ -14,5 +14,10 @@ Interrupts must be enabled in order to receive or transmit data, blocking functi
 (set GIE flag in SR) at will for waiting in low-power mode (LPM0). 
 Also, interrupts must be enabled if you want to receive data asynchronously.
 
+Features
+========
+* Simple interface
+* Async read/write
+* Waiting for input data in LPM0
 
 Some basic example: https://gist.github.com/3853003
